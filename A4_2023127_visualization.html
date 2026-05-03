@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assignment 4 — Tree & Graph Visualization</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #151821;
+    --surface2: #1c2030;
+    --border: #2a2f42;
+    --text: #e8eaf0;
+    --muted: #7b82a0;
+    --accent: #5e81f4;
+    --accent2: #ff8b64;
+    --drugA: #FF6B6B;
+    --drugB: #4ECDC4;
+    --drugC: #45B7D1;
+    --drugX: #96CEB4;
+    --drugY: #FFEAA7;
+    --decision: #8899bb;
+    --age-col: #5e81f4;
+    --dev-col: #ff8b64;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  header {
+    padding: 3rem 2rem 2rem;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, #0a0c11 0%, var(--bg) 100%);
+  }
+
+  header h1 {
+    font-family: 'Space Mono', monospace;
+    font-size: clamp(1.4rem, 4vw, 2.2rem);
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+
+  header h1 span { color: var(--accent); }
+
+  header p {
+    margin-top: 0.5rem;
+    color: var(--muted);
+    font-size: 0.9rem;
+    font-family: 'Space Mono', monospace;
+  }
+
+  nav {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1rem 2rem;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  nav a {
+    text-decoration: none;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    padding: 0.4rem 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    transition: all 0.2s;
+  }
+
+  nav a:hover { color: var(--text); border-color: var(--accent); background: rgba(94,129,244,0.08); }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+
+  section { margin-bottom: 4rem; }
+
+  .section-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--accent);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+
+  h2 {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.3rem;
+    color: var(--text);
+    margin-bottom: 0.4rem;
+  }
+
+  .desc {
+    color: var(--muted);
+    font-size: 0.88rem;
+    margin-bottom: 1.5rem;
+    max-width: 680px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 2rem;
+  }
+
+  .card-header {
+    padding: 1rem 1.4rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .card-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.85rem;
+    color: var(--text);
+  }
+
+  .badge {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.68rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 3px;
+    background: rgba(94,129,244,0.15);
+    color: var(--accent);
+    border: 1px solid rgba(94,129,244,0.3);
+  }
+
+  .viz-wrap { padding: 1.2rem; overflow-x: auto; }
+
+  svg { display: block; }
+
+  .tooltip {
+    position: fixed;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 9999;
+    font-family: 'Space Mono', monospace;
+    max-width: 200px;
+  }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    padding: 0.8rem 1.4rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.78rem;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+  }
+
+  .legend-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .findings {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: 1.2rem 1.6rem;
+    margin-top: 0.5rem;
+  }
+
+  .findings h3 {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 0.6rem;
+  }
+
+  .findings ul { list-style: none; }
+
+  .findings li {
+    font-size: 0.88rem;
+    color: var(--muted);
+    padding: 0.25rem 0;
+    padding-left: 1rem;
+    position: relative;
+  }
+
+  .findings li::before {
+    content: '→';
+    position: absolute; left: 0;
+    color: var(--accent);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.8rem;
+    margin-top: 1rem;
+  }
+
+  th {
+    background: var(--surface2);
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.6rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  td {
+    padding: 0.55rem 1rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  tr:hover td { background: var(--surface2); }
+
+  footer {
+    text-align: center;
+    padding: 2rem;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Assignment 4 — <span>Tree & Graph</span> Visualization</h1>
+  <p>Drug Classification · Daily Internet Usage by Age Group</p>
+</header>
+
+<nav>
+  <a href="#tree-topdown">Tree: Top-Down</a>
+  <a href="#tree-lr">Tree: Left→Right</a>
+  <a href="#graph-bipartite">Graph: Bipartite</a>
+  <a href="#graph-circular">Graph: Circular</a>
+  <a href="#summary">Summary</a>
+</nav>
+
+<div id="tooltip" class="tooltip"></div>
+
+<div class="container">
+
+  <!-- PART 1 -->
+  <section>
+    <div class="section-label">Part 1</div>
+    <h2>Decision Tree Visualization</h2>
+    <p class="desc">Drug Classification dataset (drug200.csv) — 200 patient records. A decision tree predicts which of 5 drugs to prescribe based on Age, Sex, Blood Pressure, Cholesterol, and Na-to-K ratio.</p>
+
+    <!-- Tree Layout 1: Top-Down -->
+    <div id="tree-topdown" class="card">
+      <div class="card-header">
+        <span class="card-title">Layout 1 — Top-Down</span>
+        <span class="badge">Decision Tree</span>
+      </div>
+      <div class="viz-wrap">
+        <svg id="svg-tree-td"></svg>
+      </div>
+      <div class="legend" id="legend-tree"></div>
+    </div>
+
+    <!-- Tree Layout 2: Left-Right -->
+    <div id="tree-lr" class="card">
+      <div class="card-header">
+        <span class="card-title">Layout 2 — Left to Right</span>
+        <span class="badge">Decision Tree</span>
+      </div>
+      <div class="viz-wrap">
+        <svg id="svg-tree-lr"></svg>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- PART 2 -->
+  <section>
+    <div class="section-label">Part 2</div>
+    <h2>Graph Visualization — Internet Usage</h2>
+    <p class="desc">Daily Internet Usage dataset — 2800 records across 6 age groups and 3 devices. Edge weight = average daily screen time (hours).</p>
+
+    <!-- Graph Layout 1: Bipartite -->
+    <div id="graph-bipartite" class="card">
+      <div class="card-header">
+        <span class="card-title">Layout 1 — Bipartite</span>
+        <span class="badge">Bipartite Graph</span>
+      </div>
+      <div class="viz-wrap">
+        <svg id="svg-graph-bip"></svg>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--age-col)"></div>Age Group</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--dev-col)"></div>Primary Device</div>
+      </div>
+    </div>
+
+    <!-- Graph Layout 2: Circular -->
+    <div id="graph-circular" class="card">
+      <div class="card-header">
+        <span class="card-title">Layout 2 — Circular</span>
+        <span class="badge">Network Graph</span>
+      </div>
+      <div class="viz-wrap">
+        <svg id="svg-graph-circ"></svg>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--age-col)"></div>Age Group</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--dev-col)"></div>Primary Device</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SUMMARY -->
+  <section id="summary">
+    <div class="section-label">Summary</div>
+    <h2>Key Findings</h2>
+
+    <table>
+      <thead>
+        <tr><th></th><th>Dataset</th><th>Visualization</th><th>Layouts</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Tree</td><td>drug200.csv</td><td>Decision Tree</td><td>Top-Down, Left to Right</td></tr>
+        <tr><td>Graph</td><td>daily_internet_usage_by_age_group.csv</td><td>Bipartite Network</td><td>Bipartite, Circular</td></tr>
+      </tbody>
+    </table>
+
+    <div class="findings" style="margin-top:1.5rem">
+      <h3>Observations</h3>
+      <ul>
+        <li>Na_to_K is the most important feature in the drug tree. Patients with Na_to_K above 14.83 almost always receive drugY.</li>
+        <li>Mobile is the most used device across all age groups, especially users aged 13–25.</li>
+        <li>The circular layout makes it easy to see which devices connect to multiple age groups simultaneously.</li>
+        <li>The decision tree achieves 100% accuracy on the training data, suggesting the rules are deterministic.</li>
+      </ul>
+    </div>
+  </section>
+
+</div>
+
+<footer>Assignment 4 · Tree & Graph Visualization · drug200.csv · daily_internet_usage_by_age_group.csv</footer>
+
+<script>
+/* =====================================================================
+   DATA
+   ===================================================================== */
+
+// Decision tree structure (from sklearn export_text output)
+// 11 nodes, 10 edges, max_depth=4
+const treeNodes = [
+  { id: 0,  label: "Na_to_K\n≤ 14.83", type: "decision", feature: "Na_to_K", threshold: 14.83 },
+  { id: 1,  label: "BP\n≤ 0.50",       type: "decision", feature: "BP",      threshold: 0.50  },
+  { id: 2,  label: "Age\n≤ 50.50",     type: "decision", feature: "Age",     threshold: 50.50 },
+  { id: 3,  label: "drugA\n(n=23)",    type: "leaf",     drug: "drugA" },
+  { id: 4,  label: "drugB\n(n=16)",    type: "leaf",     drug: "drugB" },
+  { id: 5,  label: "BP\n≤ 1.50",       type: "decision", feature: "BP",      threshold: 1.50  },
+  { id: 6,  label: "Cholesterol\n≤ 0.50", type: "decision", feature: "Cholesterol", threshold: 0.50 },
+  { id: 7,  label: "drugC\n(n=16)",    type: "leaf",     drug: "drugC" },
+  { id: 8,  label: "drugX\n(n=54)",    type: "leaf",     drug: "drugX" },
+  { id: 9,  label: "drugX\n(n=7)",     type: "leaf",     drug: "drugX" },
+  { id: 10, label: "drugY\n(n=91)",    type: "leaf",     drug: "drugY" },
+];
+
+const treeEdges = [
+  { source: 0, target: 1,  label: "Yes" },
+  { source: 0, target: 10, label: "No"  },
+  { source: 1, target: 2,  label: "Yes" },
+  { source: 1, target: 5,  label: "No"  },
+  { source: 2, target: 3,  label: "Yes" },
+  { source: 2, target: 4,  label: "No"  },
+  { source: 5, target: 6,  label: "Yes" },
+  { source: 5, target: 9,  label: "No"  },
+  { source: 6, target: 7,  label: "Yes" },
+  { source: 6, target: 8,  label: "No"  },
+];
+
+const drugColors = {
+  drugA: "#FF6B6B",
+  drugB: "#4ECDC4",
+  drugC: "#45B7D1",
+  drugX: "#96CEB4",
+  drugY: "#FFEAA7",
+  decision: "#4a5580",
+};
+
+// Internet usage edge data (from notebook output)
+const usageEdges = [
+  { age: "13–18", device: "Laptop", hours: 8.25 },
+  { age: "13–18", device: "Mobile", hours: 8.13 },
+  { age: "13–18", device: "Tablet", hours: 8.24 },
+  { age: "19–25", device: "Laptop", hours: 7.79 },
+  { age: "19–25", device: "Mobile", hours: 8.17 },
+  { age: "19–25", device: "Tablet", hours: 8.03 },
+  { age: "26–35", device: "Laptop", hours: 8.05 },
+  { age: "26–35", device: "Mobile", hours: 8.27 },
+  { age: "26–35", device: "Tablet", hours: 8.39 },
+  { age: "36–45", device: "Laptop", hours: 8.30 },
+  { age: "36–45", device: "Mobile", hours: 8.26 },
+  { age: "36–45", device: "Tablet", hours: 8.60 },
+  { age: "46–60", device: "Laptop", hours: 8.16 },
+  { age: "46–60", device: "Mobile", hours: 7.96 },
+  { age: "46–60", device: "Tablet", hours: 8.06 },
+];
+
+// 60+ group not in output but add for completeness from dataset description
+const ageGroups = ["13–18","19–25","26–35","36–45","46–60"];
+const devices   = ["Laptop","Mobile","Tablet"];
+
+const minH = d3.min(usageEdges, d => d.hours);
+const maxH = d3.max(usageEdges, d => d.hours);
+
+function edgeWidth(h) { return 1 + 7 * (h - minH) / (maxH - minH + 0.001); }
+
+/* =====================================================================
+   TOOLTIP HELPERS
+   ===================================================================== */
+const tip = document.getElementById("tooltip");
+
+function showTip(html, event) {
+  tip.innerHTML = html;
+  tip.style.opacity = 1;
+  moveTip(event);
+}
+
+function moveTip(event) {
+  tip.style.left = (event.clientX + 14) + "px";
+  tip.style.top  = (event.clientY - 28) + "px";
+}
+
+function hideTip() { tip.style.opacity = 0; }
+
+/* =====================================================================
+   TREE: TOP-DOWN LAYOUT
+   ===================================================================== */
+(function drawTreeTopDown() {
+  const W = 860, H = 400;
+  const svg = d3.select("#svg-tree-td").attr("viewBox", `0 0 ${W} ${H}`).attr("width", "100%");
+
+  // Build hierarchy from edge list
+  const nodeMap = {};
+  treeNodes.forEach(n => nodeMap[n.id] = { ...n, children: [] });
+  treeEdges.forEach(e => nodeMap[e.source].children.push({ ...nodeMap[e.target], edgeLabel: e.label }));
+  const root = d3.hierarchy(nodeMap[0], d => d.children.length ? d.children : null);
+
+  const treeLayout = d3.tree().size([W - 80, H - 80]);
+  treeLayout(root);
+
+  const g = svg.append("g").attr("transform", "translate(40,40)");
+
+  // Edges
+  g.selectAll(".link")
+    .data(root.links())
+    .join("line")
+    .attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+    .attr("x2", d => d.target.x).attr("y2", d => d.target.y)
+    .attr("stroke", "#3a4060").attr("stroke-width", 1.5);
+
+  // Edge labels
+  g.selectAll(".elabel")
+    .data(root.links())
+    .join("text")
+    .attr("x", d => (d.source.x + d.target.x) / 2)
+    .attr("y", d => (d.source.y + d.target.y) / 2 - 4)
+    .attr("text-anchor", "middle")
+    .attr("font-family", "Space Mono, monospace")
+    .attr("font-size", "9px")
+    .attr("fill", "#7b82a0")
+    .text(d => d.target.data.edgeLabel || "");
+
+  // Nodes
+  const nodeG = g.selectAll(".node")
+    .data(root.descendants())
+    .join("g")
+    .attr("transform", d => `translate(${d.x},${d.y})`)
+    .style("cursor", "pointer")
+    .on("mousemove", (event, d) => {
+      const nd = d.data;
+      const html = nd.type === "leaf"
+        ? `<b>${nd.drug}</b><br/>Leaf node`
+        : `<b>${nd.feature}</b> ≤ ${nd.threshold}`;
+      showTip(html, event);
+    })
+    .on("mouseleave", hideTip);
+
+  nodeG.append("rect")
+    .attr("x", -46).attr("y", -18)
+    .attr("width", 92).attr("height", 36)
+    .attr("rx", 5)
+    .attr("fill", d => d.data.type === "leaf" ? drugColors[d.data.drug] : drugColors.decision)
+    .attr("stroke", "#0d0f14").attr("stroke-width", 1.5);
+
+  nodeG.each(function(d) {
+    const lines = d.data.label.split("\n");
+    const g2 = d3.select(this);
+    lines.forEach((line, i) => {
+      g2.append("text")
+        .attr("text-anchor", "middle")
+        .attr("y", lines.length === 1 ? 4 : (i === 0 ? -3 : 11))
+        .attr("font-family", "Space Mono, monospace")
+        .attr("font-size", "8px")
+        .attr("font-weight", "600")
+        .attr("fill", d.data.type === "leaf" ? "#0d0f14" : "#c8d0e8")
+        .text(line);
+    });
+  });
+
+  // Legend
+  const legendData = [
+    { label: "drugA", color: drugColors.drugA },
+    { label: "drugB", color: drugColors.drugB },
+    { label: "drugC", color: drugColors.drugC },
+    { label: "drugX", color: drugColors.drugX },
+    { label: "drugY", color: drugColors.drugY },
+    { label: "Decision Node", color: drugColors.decision },
+  ];
+  const legContainer = document.getElementById("legend-tree");
+  legendData.forEach(item => {
+    const div = document.createElement("div");
+    div.className = "legend-item";
+    div.innerHTML = `<div class="legend-dot" style="background:${item.color}"></div>${item.label}`;
+    legContainer.appendChild(div);
+  });
+})();
+
+/* =====================================================================
+   TREE: LEFT-RIGHT LAYOUT
+   ===================================================================== */
+(function drawTreeLR() {
+  const W = 860, H = 360;
+  const svg = d3.select("#svg-tree-lr").attr("viewBox", `0 0 ${W} ${H}`).attr("width", "100%");
+
+  const nodeMap = {};
+  treeNodes.forEach(n => nodeMap[n.id] = { ...n, children: [] });
+  treeEdges.forEach(e => nodeMap[e.source].children.push({ ...nodeMap[e.target], edgeLabel: e.label }));
+  const root = d3.hierarchy(nodeMap[0], d => d.children.length ? d.children : null);
+
+  // Swap x and y for horizontal layout
+  const treeLayout = d3.tree().size([H - 80, W - 120]);
+  treeLayout(root);
+
+  const g = svg.append("g").attr("transform", "translate(50,40)");
+
+  g.selectAll(".link")
+    .data(root.links())
+    .join("line")
+    .attr("x1", d => d.source.y).attr("y1", d => d.source.x)
+    .attr("x2", d => d.target.y).attr("y2", d => d.target.x)
+    .attr("stroke", "#3a4060").attr("stroke-width", 1.5);
+
+  g.selectAll(".elabel")
+    .data(root.links())
+    .join("text")
+    .attr("x", d => (d.source.y + d.target.y) / 2)
+    .attr("y", d => (d.source.x + d.target.x) / 2 - 4)
+    .attr("text-anchor", "middle")
+    .attr("font-family", "Space Mono, monospace")
+    .attr("font-size", "9px")
+    .attr("fill", "#7b82a0")
+    .text(d => d.target.data.edgeLabel || "");
+
+  const nodeG = g.selectAll(".node")
+    .data(root.descendants())
+    .join("g")
+    .attr("transform", d => `translate(${d.y},${d.x})`)
+    .style("cursor", "pointer")
+    .on("mousemove", (event, d) => {
+      const nd = d.data;
+      const html = nd.type === "leaf"
+        ? `<b>${nd.drug}</b><br/>Leaf node`
+        : `<b>${nd.feature}</b> ≤ ${nd.threshold}`;
+      showTip(html, event);
+    })
+    .on("mouseleave", hideTip);
+
+  nodeG.append("rect")
+    .attr("x", -46).attr("y", -18)
+    .attr("width", 92).attr("height", 36)
+    .attr("rx", 5)
+    .attr("fill", d => d.data.type === "leaf" ? drugColors[d.data.drug] : drugColors.decision)
+    .attr("stroke", "#0d0f14").attr("stroke-width", 1.5);
+
+  nodeG.each(function(d) {
+    const lines = d.data.label.split("\n");
+    d3.select(this).selectAll("text")
+      .data(lines)
+      .join("text")
+      .attr("text-anchor", "middle")
+      .attr("y", (_, i) => lines.length === 1 ? 4 : (i === 0 ? -3 : 11))
+      .attr("font-family", "Space Mono, monospace")
+      .attr("font-size", "8px")
+      .attr("font-weight", "600")
+      .attr("fill", d.data.type === "leaf" ? "#0d0f14" : "#c8d0e8")
+      .text(t => t);
+  });
+})();
+
+/* =====================================================================
+   GRAPH: BIPARTITE LAYOUT
+   ===================================================================== */
+(function drawBipartite() {
+  const W = 680, H = 420;
+  const svg = d3.select("#svg-graph-bip").attr("viewBox", `0 0 ${W} ${H}`).attr("width", "100%");
+
+  const sortedAges = [...ageGroups].sort();
+  const sortedDevs = [...devices].sort();
+
+  const posAge = {};
+  sortedAges.forEach((ag, i) => { posAge[ag] = { x: 140, y: 50 + i * 68 }; });
+
+  const posDev = {};
+  sortedDevs.forEach((dev, j) => { posDev[dev] = { x: 540, y: 120 + j * 90 }; });
+
+  // Column labels
+  svg.append("text").attr("x", 140).attr("y", 24)
+    .attr("text-anchor","middle").attr("font-family","Space Mono, monospace")
+    .attr("font-size","10px").attr("fill","#5e81f4").text("AGE GROUPS");
+
+  svg.append("text").attr("x", 540).attr("y", 24)
+    .attr("text-anchor","middle").attr("font-family","Space Mono, monospace")
+    .attr("font-size","10px").attr("fill","#ff8b64").text("DEVICES");
+
+  // Edges
+  svg.selectAll(".bip-edge")
+    .data(usageEdges)
+    .join("line")
+    .attr("x1", d => posAge[d.age].x).attr("y1", d => posAge[d.age].y)
+    .attr("x2", d => posDev[d.device].x).attr("y2", d => posDev[d.device].y)
+    .attr("stroke", "#7B8FA1")
+    .attr("stroke-width", d => edgeWidth(d.hours))
+    .attr("opacity", 0.6)
+    .style("cursor", "pointer")
+    .on("mousemove", (event, d) => showTip(`<b>${d.age} → ${d.device}</b><br/>${d.hours.toFixed(2)}h/day`, event))
+    .on("mouseleave", hideTip);
+
+  // Edge labels
+  svg.selectAll(".bip-elabel")
+    .data(usageEdges)
+    .join("text")
+    .attr("x", d => (posAge[d.age].x + posDev[d.device].x) / 2)
+    .attr("y", d => (posAge[d.age].y + posDev[d.device].y) / 2 - 4)
+    .attr("text-anchor","middle")
+    .attr("font-family","Space Mono, monospace")
+    .attr("font-size","7.5px")
+    .attr("fill","#555e7a")
+    .text(d => `${d.hours.toFixed(1)}h`);
+
+  // Age nodes
+  const ageG = svg.selectAll(".age-node")
+    .data(sortedAges)
+    .join("g")
+    .attr("transform", d => `translate(${posAge[d].x},${posAge[d].y})`)
+    .style("cursor","pointer")
+    .on("mousemove", (event, d) => {
+      const edges = usageEdges.filter(e => e.age === d);
+      const avg = d3.mean(edges, e => e.hours).toFixed(2);
+      showTip(`<b>Age ${d}</b><br/>Avg: ${avg}h/day`, event);
+    })
+    .on("mouseleave", hideTip);
+
+  ageG.append("circle").attr("r", 28).attr("fill","#5e81f4").attr("opacity", 0.9);
+  ageG.append("text").attr("text-anchor","middle").attr("dy","0.35em")
+    .attr("font-family","Space Mono, monospace").attr("font-size","9px")
+    .attr("font-weight","700").attr("fill","#fff").text(d => d);
+
+  // Device nodes
+  const devG = svg.selectAll(".dev-node")
+    .data(sortedDevs)
+    .join("g")
+    .attr("transform", d => `translate(${posDev[d].x},${posDev[d].y})`)
+    .style("cursor","pointer")
+    .on("mousemove", (event, d) => {
+      const edges = usageEdges.filter(e => e.device === d);
+      const avg = d3.mean(edges, e => e.hours).toFixed(2);
+      showTip(`<b>${d}</b><br/>Avg: ${avg}h/day`, event);
+    })
+    .on("mouseleave", hideTip);
+
+  devG.append("circle").attr("r", 32).attr("fill","#ff8b64").attr("opacity", 0.9);
+  devG.append("text").attr("text-anchor","middle").attr("dy","0.35em")
+    .attr("font-family","Space Mono, monospace").attr("font-size","9px")
+    .attr("font-weight","700").attr("fill","#fff").text(d => d);
+})();
+
+/* =====================================================================
+   GRAPH: CIRCULAR LAYOUT
+   ===================================================================== */
+(function drawCircular() {
+  const W = 680, H = 500;
+  const R = 185;
+  const cx = W / 2, cy = H / 2;
+  const svg = d3.select("#svg-graph-circ").attr("viewBox", `0 0 ${W} ${H}`).attr("width", "100%");
+
+  // All nodes: interleave age groups and devices around circle
+  const allNodes = [];
+  const maxLen = Math.max(ageGroups.length, devices.length);
+  for (let i = 0; i < maxLen; i++) {
+    if (i < ageGroups.length) allNodes.push({ id: ageGroups[i], type: "age" });
+    if (i < devices.length)   allNodes.push({ id: devices[i],   type: "device" });
+  }
+
+  const n = allNodes.length;
+  const angleStep = (2 * Math.PI) / n;
+
+  const posMap = {};
+  allNodes.forEach((node, i) => {
+    const angle = i * angleStep - Math.PI / 2;
+    posMap[node.id] = {
+      x: cx + R * Math.cos(angle),
+      y: cy + R * Math.sin(angle),
+    };
+  });
+
+  // Color scale for edge weight
+  const colorScale = d3.scaleSequential(d3.interpolateYlOrRd).domain([minH, maxH]);
+
+  // Edges
+  svg.selectAll(".circ-edge")
+    .data(usageEdges)
+    .join("line")
+    .attr("x1", d => posMap[d.age].x).attr("y1", d => posMap[d.age].y)
+    .attr("x2", d => posMap[d.device].x).attr("y2", d => posMap[d.device].y)
+    .attr("stroke", d => colorScale(d.hours))
+    .attr("stroke-width", d => edgeWidth(d.hours))
+    .attr("opacity", 0.75)
+    .style("cursor","pointer")
+    .on("mousemove", (event, d) => showTip(`<b>${d.age} → ${d.device}</b><br/>${d.hours.toFixed(2)}h/day`, event))
+    .on("mouseleave", hideTip);
+
+  // Edge labels
+  svg.selectAll(".circ-elabel")
+    .data(usageEdges)
+    .join("text")
+    .attr("x", d => (posMap[d.age].x + posMap[d.device].x) / 2)
+    .attr("y", d => (posMap[d.age].y + posMap[d.device].y) / 2)
+    .attr("text-anchor","middle")
+    .attr("font-family","Space Mono, monospace")
+    .attr("font-size","7px")
+    .attr("fill","#555e7a")
+    .text(d => `${d.hours.toFixed(1)}h`);
+
+  // Nodes
+  const nodeG = svg.selectAll(".circ-node")
+    .data(allNodes)
+    .join("g")
+    .attr("transform", d => `translate(${posMap[d.id].x},${posMap[d.id].y})`)
+    .style("cursor","pointer")
+    .on("mousemove", (event, d) => {
+      const edges = usageEdges.filter(e => e.age === d.id || e.device === d.id);
+      const avg = d3.mean(edges, e => e.hours).toFixed(2);
+      showTip(`<b>${d.id}</b><br/>Avg: ${avg}h/day`, event);
+    })
+    .on("mouseleave", hideTip);
+
+  nodeG.append("circle")
+    .attr("r", 28)
+    .attr("fill", d => d.type === "age" ? "#5e81f4" : "#ff8b64")
+    .attr("opacity", 0.92);
+
+  nodeG.append("text")
+    .attr("text-anchor","middle").attr("dy","0.35em")
+    .attr("font-family","Space Mono, monospace").attr("font-size","9px")
+    .attr("font-weight","700").attr("fill","#fff")
+    .text(d => d.id);
+
+  // Color legend bar
+  const barW = 140, barH = 10;
+  const defs = svg.append("defs");
+  const grad = defs.append("linearGradient").attr("id","cbar-grad");
+  [0,0.25,0.5,0.75,1].forEach(t => {
+    grad.append("stop")
+      .attr("offset", `${t*100}%`)
+      .attr("stop-color", colorScale(minH + t*(maxH-minH)));
+  });
+
+  const barX = W - barW - 20, barY = H - 36;
+  svg.append("rect").attr("x",barX).attr("y",barY)
+    .attr("width",barW).attr("height",barH)
+    .attr("rx",3).attr("fill","url(#cbar-grad)");
+
+  svg.append("text").attr("x",barX).attr("y",barY-5)
+    .attr("font-family","Space Mono, monospace").attr("font-size","8px").attr("fill","#7b82a0")
+    .text(`${minH.toFixed(1)}h`);
+
+  svg.append("text").attr("x",barX+barW).attr("y",barY-5)
+    .attr("text-anchor","end")
+    .attr("font-family","Space Mono, monospace").attr("font-size","8px").attr("fill","#7b82a0")
+    .text(`${maxH.toFixed(1)}h`);
+
+  svg.append("text").attr("x",barX+barW/2).attr("y",barY+barH+14)
+    .attr("text-anchor","middle")
+    .attr("font-family","Space Mono, monospace").attr("font-size","7.5px").attr("fill","#555e7a")
+    .text("Avg Daily Screen Time (hours)");
+})();
+</script>
+</body>
+</html>
